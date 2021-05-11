@@ -1,0 +1,66 @@
+  text {
+    font: 10px sans-serif;
+  }
+
+  td,
+  th {
+    padding: 1px 4px;
+  }
+
+  .axis {
+    shape-rendering: crispEdges;
+  }
+
+  .axis path,
+  .axis line {
+    fill: none;
+    stroke: #000;
+  }
+
+  div.tooltip {
+    position: absolute;
+    text-align: center;
+    width: 60px;
+    height: 28px;
+    padding: 2px;
+    font: 12px sans-serif;
+    background: lightsteelblue;
+    border: 0px;
+    border-radius: 8px;
+    pointer-events: none;
+  }
+
+  thead tr {
+    background: #e0f0f9;
+    font: 15px sans-serif;
+  }
+
+  tr:nth-child(even) {
+    /*background: #CCC*/
+    background: #e0f0f9;
+  }
+
+  td {
+    font: 15px sans-serif;
+    padding-top: 4px;
+    padding-bottom: 4px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+
+
+  #radio_btns_query_mode>label {
+    background: "red";
+    padding-left: 4px;
+    padding-right: 10px;
+  }
+
+  #radio_btns_triage_mode>label {
+    background: "red";
+    padding-left: 4px;
+    padding-right: 10px;
+  }
+
+  body {
+    padding-left: 10px;
+  }

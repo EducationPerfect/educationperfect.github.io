@@ -1,4 +1,3 @@
-console.log("hello world!")
   if (document.getElementById('main_div').innerHTML == '') {
     document.getElementById('main_div').innerHTML = ' ';
 
