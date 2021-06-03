@@ -26,7 +26,12 @@ if (document.getElementById('main_div').innerHTML == '') {
           "type_code": values[7],
           "templates": values[8],
           "list_created_at": values[9],
-          "public_list_id": values[10]
+          "public_list_id": values[10],
+          "number_of_schools": values[11],
+          "abandonment_rate": values[12],
+          "accuracy_list_outlier": values[13],
+          "completion_rate_list_outlier": values[14],
+          "time_taken_list_outlier": values[15]
         })
 
       } else if (!found) {
@@ -50,14 +55,6 @@ if (document.getElementById('main_div').innerHTML == '') {
       not_loaded.html('<b>Please run the query again..</b>');
       return;
     }
-    // if(!datasets.filter(function(d) {
-    //   return d.queryName == "D3 Data";
-    // })) {
-    //   var not_loaded = d3.select("body").append("div");
-    //   not_loaded.style("margin-left", 30 + 'px');
-    //   not_loaded.html('<b>Please run the query again.</b>');
-    //   return;
-    // }
 
     // console.log(datasets)
 
@@ -120,6 +117,11 @@ if (document.getElementById('main_div').innerHTML == '') {
       query.push(row.template_names);
       query.push(row.list_created_at);
       query.push(row.public_list_id);
+      query.push(row.total_unique_schools);
+      query.push(row.abandonment_rate);
+      query.push(row.avg_accuracy_is_outlier_list);
+      query.push(row.avg_completion_rate_is_outlier_list);
+      query.push(row.avg_time_taken_is_outlier_list);
       tree = func(tree, path, query);
     }
 
@@ -151,12 +153,14 @@ if (document.getElementById('main_div').innerHTML == '') {
 
 
       var threshold_value = 0;
-      var query_mode = 'accuracy';
+      var query_mode = 'completion_rate';
 
       function set_threshold() {
         if (query_mode == 'time_taken') {
           threshold_value = 80;
         } else if (query_mode == 'completion_rate' || query_mode == 'accuracy') {
+          threshold_value = 0.3;
+        } else if (query_mode == 'abandonment_rate') {
           threshold_value = 0.3;
         }
       }
@@ -186,6 +190,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                 if (d.avg_time_taken >= threshold_value[0] && d.avg_time_taken <= threshold_value[1]) return "#df65b0";
               } else if (query_mode == 'completion_rate') {
                 if (d.avg_completion_rate >= threshold_value[0] && d.avg_completion_rate <= threshold_value[1]) return "#df65b0";
+              } else if (query_mode == 'abandonment_rate') {
+                if (d.avg_abandonment_rate >= threshold_value[0] && d.avg_abandonment_rate <= threshold_value[1]) return "#df65b0";
               } else if (query_mode == 'accuracy') {
                 if ((d.height == 0 && (d.data.type_code == 3 || d.data.type_code == 4 || d.data.type_code == 6)) || (d.type == 'quiz')) {
                   if (d.avg_accuracy >= threshold_value[0] && d.avg_accuracy <= threshold_value[1]) return "#df65b0";
@@ -194,17 +200,19 @@ if (document.getElementById('main_div').innerHTML == '') {
 
 
               if (query_mode == 'time_taken') {
-                return thresholdScale(d.avg_time_taken)
+                return thresholdScale_2(d.avg_time_taken)
               } else if (query_mode == 'completion_rate') {
-                return quantileScale(d.avg_completion_rate);
+                return thresholdScale_1(d.avg_completion_rate);
+              } else if (query_mode == 'abandonment_rate') {
+                return thresholdScale_1(d.avg_abandonment_rate);
               } else if (query_mode == 'accuracy') {
                 if ((d.height == 0 && !(d.data.type_code == 3 || d.data.type_code == 4 || d.data.type_code == 6)) || (d.type == 'no_quiz')) {
                   return ordinalScale(-1);
                 }
-                return quantileScale(d.avg_accuracy);
+                return thresholdScale_1(d.avg_accuracy);
               }
             })
-            tabulate(['name', 'path', 'analysis', 'number_of_attempts'], threshold_value);
+            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
           });
         return sliderThreshold;
       }
@@ -230,7 +238,10 @@ if (document.getElementById('main_div').innerHTML == '') {
           .each(function (d) {
             d.avg_attempts = d.value / d.count;
           })
-
+          .sum(d => d.number_of_schools)
+          .each(function (d) {
+            d.avg_num_schools = d.value / d.count;
+          })
           // time taken
           .sum(d => d.size)
           .each(d => d.temp = d.value)
@@ -263,6 +274,21 @@ if (document.getElementById('main_div').innerHTML == '') {
           .each(d => d.value_completion_rate = d.value)
 
 
+          // abandonment rate
+          .sum(d => d.size)
+          .each(d => d.temp = d.value)
+          .sum(d => d.abandonment_rate * d.size)
+          .each(function (d) {
+            if (d.temp != 0) {
+              d.avg_abandonment_rate = d.value / d.temp;
+              d.value = d.avg_abandonment_rate;
+            } else {
+              d.avg_abandonment_rate = 0;
+              d.value = d.avg_abandonment_rate;
+            }
+          })
+          .each(d => d.value_abandonment_rate = d.value)
+
           // accuracy 
           .each(function (d) {
             if (d.height == 0 && (d.data.type_code == 1 || d.data.type_code == 2 || d.data.type_code == 5)) {
@@ -288,8 +314,7 @@ if (document.getElementById('main_div').innerHTML == '') {
           .each(function (d) {
             if (d.height == 0) {
               d.public_list_id = d.data.public_list_id;
-            }
-            else if (d.height == 1) {
+            } else if (d.height == 1) {
               sec_children = d.children
               d.public_list_id = sec_children[0].data.public_list_id;
             }
@@ -410,19 +435,28 @@ if (document.getElementById('main_div').innerHTML == '') {
       var format2 = d3.format(",d");
 
 
-      quantileScale = d3.scaleQuantile()
-        .domain([0, 1])
-        .range(['#d7191c', '#fdae61', '#ffffbf', '#abd9e9', '#2c7bb6']);
+
+      thresholdScale_1 = d3.scaleThreshold()
+        .domain([0, 0.6, 0.7, 0.8, 0.9, 1.01])
+        .range(['#ccc', '#d7191c', '#fdae61', '#ffffbf', '#abd9e9', '#2c7bb6', '#ccc']);
 
       ordinalScale = d3.scaleOrdinal()
         .domain(['N/A'])
         .range(['#cccccc']);
 
-      thresholdScale = d3.scaleThreshold()
+      thresholdScale_2 = d3.scaleThreshold()
         .domain([0, 50, 100, 150, 200])
         .range(['#d7191c', '#2c7bb6', '#abd9e9', '#ffffbf', '#fdae61', '#d7191c']);
 
-      //console.log(tree)
+      thresholdScale_3 = d3.scaleThreshold()
+        .domain([0, 0.6, 0.7, 0.8, 0.9, 1])
+        .range(['#ccc', '#2c7bb6', '#abd9e9', '#ffffbf', '#fdae61', '#d7191c', '#ccc']);
+
+      thresholdScale_4 = d3.scaleThreshold()
+        .domain([0, 0.2, 0.4, 0.6, 0.8, 1])
+        .range(['#ccc', '#2c7bb6', '#abd9e9', '#ffffbf', '#fdae61', '#d7191c', '#ccc']);
+
+      console.log(tree)
 
       var root = partition(data);
       if (root.height == 0) {
@@ -431,7 +465,7 @@ if (document.getElementById('main_div').innerHTML == '') {
         no_modules.html('<b>No modules yet</b>');
         return;
       }
-      //console.log(root)
+
 
       var radios_query_mode = d3.select("#threshold_container").append("div")
         .attr("id", "radio_btns_query_mode")
@@ -441,6 +475,7 @@ if (document.getElementById('main_div').innerHTML == '') {
       add_radio_query_mode("accuracy", "Accuracy");
       add_radio_query_mode("completion_rate", "Completion rate");
       add_radio_query_mode("time_taken", "Time taken");
+      add_radio_query_mode("abandonment_rate", "Abandonment rate");
 
       function add_radio_query_mode(id, text) {
         radios_query_mode.append("input")
@@ -469,9 +504,11 @@ if (document.getElementById('main_div').innerHTML == '') {
 
 
 
+
             set_threshold();
             find_min_max();
             thresholddata = d3.range(min, max + 0.000001, (max - min) / 2);
+
 
             var sliderThreshold = define_slider_threshold();
 
@@ -489,7 +526,7 @@ if (document.getElementById('main_div').innerHTML == '') {
             d3.select('#value-threshold').text(sliderThreshold.value().map(d3.format('.2')).join('-'));
 
             update_cells();
-            tabulate(['name', 'path', 'analysis', 'number_of_attempts'], threshold_value);
+            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
 
 
           });
@@ -516,6 +553,21 @@ if (document.getElementById('main_div').innerHTML == '') {
                 min = d.avg_completion_rate;
               }
             }
+          })
+        } else if (query_mode == 'abandonment_rate') {
+          root.each(function (d) {
+            if (d.depth > 0) {
+              if (d.avg_abandonment_rate > max) {
+                max = d.avg_abandonment_rate;
+              }
+              if (d.avg_abandonment_rate < min) {
+                min = d.avg_abandonment_rate;
+              }
+
+
+            }
+            min = 0;
+
           })
         } else if (query_mode == 'time_taken') {
           root.each(function (d) {
@@ -577,25 +629,86 @@ if (document.getElementById('main_div').innerHTML == '') {
       d3.select('#value-threshold').text(sliderThreshold.value().map(d3.format('.2')).join('-'));
 
 
-      var legend_data_set1 = [
-        { "label": "N/A", "colour": "#cccccc" }, { "label": "0-19.9%", "colour": "#d7191c" }, { "label": "20-39.9%", "colour": "#fdae61" }, { "label": "40-59.9%", "colour": "#ffffbf" }, { "label": "60-79.9%", "colour": "#abd9e9" }, { "label": "80-100%", "colour": "#2c7bb6" }
-      ]
+      var legend_data_set1 = [{
+        "label": "N/A",
+        "colour": "#cccccc"
+      }, {
+        "label": "0-59.9%",
+        "colour": "#d7191c"
+      }, {
+        "label": "60-69.9%",
+        "colour": "#fdae61"
+      }, {
+        "label": "70-79.9%",
+        "colour": "#ffffbf"
+      }, {
+        "label": "80-89.9%",
+        "colour": "#abd9e9"
+      }, {
+        "label": "90-100%",
+        "colour": "#2c7bb6"
+      }]
 
-      var legend_data_set2 = [
-        { "label": "0-19.9%", "colour": "#d7191c" }, { "label": "20-39.9%", "colour": "#fdae61" }, { "label": "40-59.9%", "colour": "#ffffbf" }, { "label": "60-79.9%", "colour": "#abd9e9" }, { "label": "80-100%", "colour": "#2c7bb6" }
-      ]
+      var legend_data_set2 = [{
+        "label": "0-59.9%",
+        "colour": "#d7191c"
+      }, {
+        "label": "60-69.9%",
+        "colour": "#fdae61"
+      }, {
+        "label": "70-79.9%",
+        "colour": "#ffffbf"
+      }, {
+        "label": "80-89.9%",
+        "colour": "#abd9e9"
+      }, {
+        "label": "90-100%",
+        "colour": "#2c7bb6"
+      }]
+      var legend_data_set4 = [{
+        "label": "0-19.9%",
+        "colour": "#2c7bb6"
+      }, {
+        "label": "20-39.9%",
+        "colour": "#abd9e9"
+      }, {
+        "label": "40-59.9%",
+        "colour": "#ffffbf"
+      }, {
+        "label": "60-89.9%",
+        "colour": "#fdae61"
+      }, {
+        "label": "90-100%",
+        "colour": "#d7191c"
+      }]
 
-      var legend_data_set3 = [
-        { "label": "0-49.9s", "colour": "#2c7bb6" }, { "label": "50-99.9s", "colour": "#abd9e9" }, { "label": "100-149.9s", "colour": "#ffffbf" }, { "label": "150-199.9s", "colour": "#fdae61" }, { "label": ">= 200s", "colour": "#d7191c" }
-      ]
+      var legend_data_set3 = [{
+        "label": "0-49.9s",
+        "colour": "#2c7bb6"
+      }, {
+        "label": "50-99.9s",
+        "colour": "#abd9e9"
+      }, {
+        "label": "100-149.9s",
+        "colour": "#ffffbf"
+      }, {
+        "label": "150-199.9s",
+        "colour": "#fdae61"
+      }, {
+        "label": ">= 200s",
+        "colour": "#d7191c"
+      }]
 
       var legend_data;
+
       function colour_legend() {
 
         if (query_mode == "accuracy") {
           legend_data = legend_data_set1
         } else if (query_mode == "completion_rate") {
           legend_data = legend_data_set2
+        } else if (query_mode == "abandonment_rate") {
+          legend_data = legend_data_set4
         } else if (query_mode == "time_taken") {
           legend_data = legend_data_set3;
         }
@@ -616,12 +729,16 @@ if (document.getElementById('main_div').innerHTML == '') {
         g.append("rect")
           .attr("width", 80)
           .attr("height", 20)
-          .attr("x", function (d, i) { return 80 * i })
+          .attr("x", function (d, i) {
+            return 80 * i
+          })
           .attr("y", 0)
           .attr("fill", d => d.colour)
 
         g.append("text")
-          .attr("x", function (d, i) { return 80 * i + 20 })
+          .attr("x", function (d, i) {
+            return 80 * i + 20
+          })
           .attr("y", 12)
           .text(d => d.label)
       }
@@ -662,14 +779,25 @@ if (document.getElementById('main_div').innerHTML == '') {
           })
           .attr("fill", d => {
             if (query_mode == 'time_taken') {
-              return thresholdScale(d.avg_time_taken)
+              return thresholdScale_2(d.avg_time_taken)
             } else if (query_mode == 'completion_rate') {
-              return quantileScale(d.avg_completion_rate)
+              return thresholdScale_1(d.avg_completion_rate)
+            } else if (query_mode == 'abandonment_rate') {
+              return thresholdScale_4(d.avg_abandonment_rate)
             } else if (query_mode == 'accuracy') {
               if ((d.height == 0 && !(d.data.type_code == 3 || d.data.type_code == 4 || d.data.type_code == 6)) || (d.type == 'no_quiz')) {
                 return ordinalScale(-1)
               }
-              return quantileScale(d.avg_accuracy)
+              return thresholdScale_1(d.avg_accuracy)
+            }
+          })
+          .attr("stroke", d => {
+            if (query_mode == 'time_taken' && d.height == 0 && (d.data.time_taken_list_outlier == 1)) {
+              return "#800000";
+            } else if (query_mode == 'completion_rate' && d.height == 0 && (d.data.completion_rate_list_outlier == 1)) {
+              return "#800000";
+            } else if (query_mode == 'accuracy' && d.height == 0 && (d.data.accuracy_list_outlier == 1)) {
+              return "#800000";
             }
           })
           .style("cursor", "pointer")
@@ -705,6 +833,10 @@ if (document.getElementById('main_div').innerHTML == '') {
               label = format1(d.avg_time_taken);
             } else if (query_mode == 'completion_rate') {
               label = format1(d.avg_completion_rate * 100) + '%';
+            } else if (query_mode == 'abandonment_rate') {
+              if (d.height != 0 && d.height != 1) {
+                label = format1(d.avg_abandonment_rate * 100) + '%';
+              } else label = '';
             } else if (query_mode == 'accuracy') {
               label = format1(d.avg_accuracy * 100) + '%';
             }
@@ -724,6 +856,10 @@ if (document.getElementById('main_div').innerHTML == '') {
               label = format1(d.avg_time_taken);
             } else if (query_mode == 'completion_rate') {
               label = format1(d.avg_completion_rate * 100) + '%';
+            } else if (query_mode == 'abandonment_rate') {
+              if (d.height != 0 && d.height != 1) {
+                label = format1(d.avg_abandonment_rate * 100) + '%';
+              } else label = ''
             } else if (query_mode == 'accuracy') {
               if ((d.height == 0 && !(d.data.type_code == 3 || d.data.type_code == 4 || d.data.type_code == 6)) || (d.type == 'no_quiz'))
                 label = 'N/A';
@@ -749,8 +885,25 @@ if (document.getElementById('main_div').innerHTML == '') {
 
             label += '\ncompletion_rate ' + format1(d.avg_completion_rate * 100) + '%';
             label += '\ntime_taken ' + format1(d.avg_time_taken)
+            if (d.height != 0 && d.height != 1) {
+              label += '\nabandonment_rate ' + format1(d.avg_abandonment_rate * 100) + '%';
+            }
+            if (query_mode == 'time_taken' && d.height == 0) {
+              if (d.data.time_taken_list_outlier == 1) {
+                label += '\nlesson outlier';
+              }
+            } else if (query_mode == 'completion_rate' && d.height == 0) {
+              if (d.data.completion_rate_list_outlier == 1) {
+                label += '\nlesson outlier';
+              }
+            } else if (query_mode == 'accuracy' && d.height == 0) {
+              if (d.data.accuracy_list_outlier == 1) {
+                label += '\nlesson outlier';
+              }
+            }
             if (d.depth != 0) {
               label += '\n' + 'number of attempts  ' + format2(Math.floor(d.avg_attempts));
+              label += '\n' + 'number of schools ' + format2(Math.floor(d.avg_num_schools));
               label += '\n' + 'templates  ' + d.templates;
             }
 
@@ -768,15 +921,13 @@ if (document.getElementById('main_div').innerHTML == '') {
           temp_path = `${focus.ancestors().map(d => d.data.name).reverse().join("/")}`
           if (focus.height <= 2) {
             show_path.html('<b>' + '<a href="https://www.educationperfect.com/controlpanel/#/content/activity/' + focus.public_list_id + '" target="_blank">' + temp_path + '</a>' + '</b>');
-          }
-          else {
+          } else {
             show_path.html('<b>' + temp_path + '</b>');
           }
-        }
-        else
+        } else
           show_path.html('')
         height = update_height(focus);
-        tabulate(['name', 'path', 'analysis', 'number_of_attempts'], threshold_value);
+        tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
 
         svg.attr("viewBox", [0, 0, width, height])
 
@@ -823,7 +974,7 @@ if (document.getElementById('main_div').innerHTML == '') {
           .on("change", function (event, d) {
 
             triage_mode = id;
-            tabulate(['name', 'path', 'analysis', 'number_of_attempts'], threshold_value);
+            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
           });
         radios_triage_mode.append("label")
           .attr("for", id)
@@ -850,7 +1001,7 @@ if (document.getElementById('main_div').innerHTML == '') {
           } else {
             include_zero_values = false;
           }
-          tabulate(['name', 'path', 'analysis', 'number_of_attempts'], threshold_value);
+          tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
         })
       include_zeros_div.append("label")
         .attr("for", "include_zeros")
@@ -878,6 +1029,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                   a = d.children[i].avg_time_taken;
                 } else if (query_mode == 'completion_rate') {
                   a = d.children[i].avg_completion_rate;
+                } else if (query_mode == 'abandonment_rate') {
+                  a = d.children[i].avg_abandonment_rate;
                 } else if (query_mode == 'accuracy' && d.children[i].type == 'quiz') {
                   a = d.children[i].avg_accuracy;
                 } else if (query_mode == 'accuracy' && d.children[i].type != 'quiz') {
@@ -888,7 +1041,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                     'name': d.children[i].data.name,
                     'path': d.children[i].path,
                     'analysis': a,
-                    'number_of_attempts': format2(Math.floor(d.children[i].avg_attempts))
+                    'number_of_attempts': format2(Math.floor(d.children[i].avg_attempts)),
+                    'number_of_schools': format2(Math.floor(d.children[i].avg_num_schools))
                   }
                   new_data.push(item)
                 }
@@ -900,6 +1054,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                 a = d.avg_time_taken;
               } else if (query_mode == 'completion_rate') {
                 a = d.avg_completion_rate;
+              } else if (query_mode == 'abandonment_rate') {
+                a = d.avg_abandonment_rate;
               } else if (query_mode == 'accuracy' && d.type == 'quiz') {
                 a = d.avg_accuracy;
               } else if (query_mode == 'accuracy' && d.type != 'quiz') {
@@ -910,7 +1066,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'name': d.data.name,
                   'path': d.path,
                   'analysis': a,
-                  'number_of_attempts': format2(Math.floor(d.avg_attempts))
+                  'number_of_attempts': format2(Math.floor(d.avg_attempts)),
+                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
                 }
                 new_data.push(item)
               }
@@ -923,6 +1080,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                 a = d.avg_time_taken;
               } else if (query_mode == 'completion_rate') {
                 a = d.avg_completion_rate;
+              } else if (query_mode == 'abandonment_rate') {
+                a = d.avg_abandonment_rate;
               } else if (query_mode == 'accuracy' && d.type == 'quiz') {
                 a = d.avg_accuracy;
               } else if (query_mode == 'accuracy' && d.type != 'quiz') {
@@ -933,7 +1092,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'name': d.data.name,
                   'path': d.path,
                   'analysis': a,
-                  'number_of_attempts': format2(Math.floor(d.avg_attempts))
+                  'number_of_attempts': format2(Math.floor(d.avg_attempts)),
+                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
                 }
                 new_data.push(item)
               }
@@ -957,7 +1117,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'name': d.data.name,
                   'path': d.path,
                   'analysis': a,
-                  'number_of_attempts': format2(Math.floor(d.avg_attempts))
+                  'number_of_attempts': format2(Math.floor(d.avg_attempts)),
+                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
                 }
                 new_data.push(item)
               }
@@ -982,7 +1143,8 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'name': d.data.name,
                   'path': d.path,
                   'analysis': a,
-                  'number_of_attempts': format2(Math.floor(d.avg_attempts))
+                  'number_of_attempts': format2(Math.floor(d.avg_attempts)),
+                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
                 }
                 new_data.push(item)
               }
@@ -1021,6 +1183,8 @@ if (document.getElementById('main_div').innerHTML == '') {
             return true;
           } else if (query_mode == 'completion_rate' && item.analysis >= filtered_value[0] && item.analysis <= filtered_value[1]) {
             return true;
+          } else if (query_mode == 'abandonment_rate' && item.analysis >= filtered_value[0] && item.analysis <= filtered_value[1]) {
+            return true;
           }
 
           return false;
@@ -1052,7 +1216,7 @@ if (document.getElementById('main_div').innerHTML == '') {
           .append('td')
           .text(function (d) {
             if (isFloat(d.value)) {
-              if (query_mode == 'accuracy' || query_mode == 'completion_rate') {
+              if (query_mode == 'accuracy' || query_mode == 'completion_rate' || query_mode == 'abandonment_rate') {
                 return format1(d.value * 100) + '%';
               }
               return format1(d.value);
@@ -1064,7 +1228,7 @@ if (document.getElementById('main_div').innerHTML == '') {
       }
 
       // load table
-      tabulate(['name', 'path', 'analysis', 'number_of_attempts'], threshold_value);
+      tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
 
     }
   }
