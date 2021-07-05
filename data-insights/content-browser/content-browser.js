@@ -1118,7 +1118,7 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'path': d.path,
                   'analysis': a,
                   'number_of_attempts': format2(Math.floor(d.avg_attempts)),
-                  'number_of_teachers: format2(Math.floor(d.avg_num_teachers))
+                  'number_of_teachers': format2(Math.floor(d.avg_num_teachers))
                 }
                 new_data.push(item)
               }
