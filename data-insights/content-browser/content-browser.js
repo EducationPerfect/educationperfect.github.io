@@ -27,7 +27,7 @@ if (document.getElementById('main_div').innerHTML == '') {
           "templates": values[8],
           "list_created_at": values[9],
           "public_list_id": values[10],
-          "number_of_schools": values[11],
+          "number_of_teachers": values[11],
           "abandonment_rate": values[12],
           "accuracy_list_outlier": values[13],
           "completion_rate_list_outlier": values[14],
@@ -117,7 +117,7 @@ if (document.getElementById('main_div').innerHTML == '') {
       query.push(row.template_names);
       query.push(row.list_created_at);
       query.push(row.public_list_id);
-      query.push(row.total_unique_schools);
+      query.push(row.total_unique_teachers);
       query.push(row.abandonment_rate);
       query.push(row.avg_accuracy_is_outlier_list);
       query.push(row.avg_completion_rate_is_outlier_list);
@@ -212,7 +212,7 @@ if (document.getElementById('main_div').innerHTML == '') {
                 return thresholdScale_1(d.avg_accuracy);
               }
             })
-            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
+            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_teachers'], threshold_value);
           });
         return sliderThreshold;
       }
@@ -238,9 +238,9 @@ if (document.getElementById('main_div').innerHTML == '') {
           .each(function (d) {
             d.avg_attempts = d.value / d.count;
           })
-          .sum(d => d.number_of_schools)
+          .sum(d => d.number_of_teachers)
           .each(function (d) {
-            d.avg_num_schools = d.value / d.count;
+            d.avg_num_teachers = d.value / d.count;
           })
           // time taken
           .sum(d => d.size)
@@ -526,7 +526,7 @@ if (document.getElementById('main_div').innerHTML == '') {
             d3.select('#value-threshold').text(sliderThreshold.value().map(d3.format('.2')).join('-'));
 
             update_cells();
-            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
+            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_teachers'], threshold_value);
 
 
           });
@@ -903,7 +903,7 @@ if (document.getElementById('main_div').innerHTML == '') {
             }
             if (d.depth != 0) {
               label += '\n' + 'number of attempts  ' + format2(Math.floor(d.avg_attempts));
-              label += '\n' + 'number of schools ' + format2(Math.floor(d.avg_num_schools));
+              label += '\n' + 'number of teachers ' + format2(Math.floor(d.avg_num_teachers));
               label += '\n' + 'templates  ' + d.templates;
             }
 
@@ -927,7 +927,7 @@ if (document.getElementById('main_div').innerHTML == '') {
         } else
           show_path.html('')
         height = update_height(focus);
-        tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
+        tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_teachers'], threshold_value);
 
         svg.attr("viewBox", [0, 0, width, height])
 
@@ -974,7 +974,7 @@ if (document.getElementById('main_div').innerHTML == '') {
           .on("change", function (event, d) {
 
             triage_mode = id;
-            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
+            tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_teachers'], threshold_value);
           });
         radios_triage_mode.append("label")
           .attr("for", id)
@@ -1001,7 +1001,7 @@ if (document.getElementById('main_div').innerHTML == '') {
           } else {
             include_zero_values = false;
           }
-          tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
+          tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_teachers'], threshold_value);
         })
       include_zeros_div.append("label")
         .attr("for", "include_zeros")
@@ -1042,7 +1042,7 @@ if (document.getElementById('main_div').innerHTML == '') {
                     'path': d.children[i].path,
                     'analysis': a,
                     'number_of_attempts': format2(Math.floor(d.children[i].avg_attempts)),
-                    'number_of_schools': format2(Math.floor(d.children[i].avg_num_schools))
+                    'number_of_teachers': format2(Math.floor(d.children[i].avg_num_teachers))
                   }
                   new_data.push(item)
                 }
@@ -1067,7 +1067,7 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'path': d.path,
                   'analysis': a,
                   'number_of_attempts': format2(Math.floor(d.avg_attempts)),
-                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
+                  'number_of_teachers': format2(Math.floor(d.avg_num_teachers))
                 }
                 new_data.push(item)
               }
@@ -1093,7 +1093,7 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'path': d.path,
                   'analysis': a,
                   'number_of_attempts': format2(Math.floor(d.avg_attempts)),
-                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
+                  'number_of_teachers': format2(Math.floor(d.avg_num_teachers))
                 }
                 new_data.push(item)
               }
@@ -1118,7 +1118,7 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'path': d.path,
                   'analysis': a,
                   'number_of_attempts': format2(Math.floor(d.avg_attempts)),
-                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
+                  'number_of_teachers: format2(Math.floor(d.avg_num_teachers))
                 }
                 new_data.push(item)
               }
@@ -1144,7 +1144,7 @@ if (document.getElementById('main_div').innerHTML == '') {
                   'path': d.path,
                   'analysis': a,
                   'number_of_attempts': format2(Math.floor(d.avg_attempts)),
-                  'number_of_schools': format2(Math.floor(d.avg_num_schools))
+                  'number_of_teachers': format2(Math.floor(d.avg_num_teachers))
                 }
                 new_data.push(item)
               }
@@ -1228,7 +1228,7 @@ if (document.getElementById('main_div').innerHTML == '') {
       }
 
       // load table
-      tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_schools'], threshold_value);
+      tabulate(['name', 'path', 'analysis', 'number_of_attempts', 'number_of_teachers'], threshold_value);
 
     }
   }
